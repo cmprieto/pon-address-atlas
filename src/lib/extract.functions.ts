@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const PROMPT = `Eres un asistente de replanteos FTTH. Recibes la imagen de un plano.
 Extrae:
-- "pon": el nombre/código del PON que aparece en la cabecera o cajetín del plano.
+- "pon": el nombre/código del PON de la cabecera o cajetín, SIN el texto "hoja X de Y".
 - "poblacion": la población/municipio de la cabecera.
 - "fincas": TODAS las fincas marcadas en el plano, cada una con "calle" (nombre de la calle, con tipo de vía si aparece) y "numero" (número de portal/finca). Si la misma calle y número aparece varias veces en este plano, inclúyela tantas veces como aparezca.
 Responde SOLO con JSON: {"pon":"","poblacion":"","fincas":[{"calle":"","numero":""}]}`;

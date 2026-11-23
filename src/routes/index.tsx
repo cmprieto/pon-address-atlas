@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { extractPage } from "@/lib/extract.functions";
-import { findConflicts, headerOf, parsePages, toText, type PageResult } from "@/lib/replanteo";
+import { buildGroups, findConflicts, groupText, parsePages, toText, type PageResult } from "@/lib/replanteo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -49,14 +49,13 @@ function Index() {
   const [results, setResults] = useState<PageResult[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [decisions, setDecisions] = useState<Record<string, boolean | undefined>>({});
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const conflicts = useMemo(() => findConflicts(results), [results]);
   const pending = conflicts.filter((c) => decisions[c.key] === undefined);
-  const text = useMemo(
-    () => toText(results, Object.fromEntries(Object.entries(decisions).map(([k, v]) => [k, !!v]))),
-    [results, decisions],
-  );
+  const dec = useMemo(() => Object.fromEntries(Object.entries(decisions).map(([k, v]) => [k, !!v])), [decisions]);
+  const groups = useMemo(() => buildGroups(results, dec), [results, dec]);
+  const copy = async (id: string, t: string) => { await navigator.clipboard.writeText(t); setCopied(id); setTimeout(() => setCopied(null), 1500); };
   const pages = doc ? parsePages(pagesInput, doc.numPages) : [];
 
   async function onFile(f: File | undefined) {
@@ -91,7 +90,6 @@ function Index() {
     setErrors(errs); setProgress(""); setBusy(false);
   }
 
-  const header = headerOf(results);
   const done = results.length > 0 && !busy;
 
   return (
@@ -152,7 +150,7 @@ function Index() {
               {conflicts.map((c) => (
                 <li key={c.key} className="rounded-xl bg-muted p-3">
                   <p className="font-semibold">{c.calle} {c.numero}</p>
-                  <p className="text-xs text-muted-foreground">Páginas {c.pages.join(", ")}</p>
+                  <p className="text-xs text-muted-foreground">PON {c.pons.join(", ")} · Páginas {c.pages.join(", ")}</p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     {([true, false] as const).map((v) => (
                       <button
@@ -171,27 +169,41 @@ function Index() {
         )}
 
         {results.length > 0 && (
-          <div className="shadow-card rounded-2xl bg-card p-5">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="font-mono text-xs uppercase text-muted-foreground">PON</p>
-                <p className="font-bold">{header.pon || "—"}</p>
-                <p className="mt-1 font-mono text-xs uppercase text-muted-foreground">Población</p>
-                <p className="font-bold">{header.poblacion || "—"}</p>
-              </div>
+          <>
+            {pending.length > 0 && !busy && (
+              <p className="px-1 text-xs font-semibold text-accent-foreground">Responde las {pending.length} repeticiones pendientes para cerrar los listados.</p>
+            )}
+            {groups.length > 1 && (
               <button
                 disabled={pending.length > 0 || busy}
-                onClick={async () => { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-                className="rounded-xl bg-accent px-4 py-3 text-sm font-bold text-accent-foreground disabled:opacity-50"
+                onClick={() => copy("__all", toText(results, dec))}
+                className="w-full rounded-xl bg-accent py-3 text-sm font-bold text-accent-foreground disabled:opacity-50"
               >
-                {copied ? "¡Copiado!" : "Copiar"}
+                {copied === "__all" ? "¡Copiado!" : `Copiar los ${groups.length} PON`}
               </button>
-            </div>
-            {pending.length > 0 && !busy && (
-              <p className="mt-3 text-xs font-semibold text-accent-foreground">Responde las {pending.length} repeticiones pendientes para cerrar el listado.</p>
             )}
-            <pre className="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-xl bg-muted p-4 font-mono text-sm">{text}</pre>
-          </div>
+            {groups.map((g) => (
+              <div key={g.pon} className="shadow-card rounded-2xl bg-card p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-mono text-xs uppercase text-muted-foreground">PON</p>
+                    <p className="font-bold">{g.pon}</p>
+                    <p className="mt-1 font-mono text-xs uppercase text-muted-foreground">Población</p>
+                    <p className="font-bold">{g.poblacion || "—"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Páginas {g.pages.join(", ")} · {g.fincas.length} fincas</p>
+                  </div>
+                  <button
+                    disabled={pending.length > 0 || busy}
+                    onClick={() => copy(g.pon, groupText(g))}
+                    className="rounded-xl bg-accent px-4 py-3 text-sm font-bold text-accent-foreground disabled:opacity-50"
+                  >
+                    {copied === g.pon ? "¡Copiado!" : "Copiar"}
+                  </button>
+                </div>
+                <pre className="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-xl bg-muted p-4 font-mono text-sm">{groupText(g)}</pre>
+              </div>
+            ))}
+          </>
         )}
       </section>
     </main>
