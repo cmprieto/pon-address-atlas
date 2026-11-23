@@ -28,3 +28,5 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- PDF pages are rendered to images in the browser (pdfjs) and sent one by one to a server function for AI extraction; merge/duplicate rules live in src/lib/replanteo.ts with tests. Why: keeps uploads small and rules testable.
