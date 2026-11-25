@@ -5,13 +5,24 @@ const PROMPT = `Eres un asistente de replanteos FTTH. Recibes la imagen de un pl
 Extrae:
 - "pon": el nombre/código del PON de la cabecera o cajetín, SIN el texto "hoja X de Y".
 - "poblacion": la población/municipio de la cabecera.
-- "fincas": TODAS las fincas marcadas en el plano, cada una con "calle" (nombre de la calle, con tipo de vía si aparece) y "numero" (número de portal/finca). Si la misma calle y número aparece varias veces en este plano, inclúyela tantas veces como aparezca.
-Responde SOLO con JSON: {"pon":"","poblacion":"","fincas":[{"calle":"","numero":""}]}`;
+- "fincas": TODAS las fincas marcadas en el plano, cada una con "tipoVia" (tipo de vía como CALLE, AVDA, PLAZA, PASEO, etc., o vacío si no aparece), "nombreVia" (nombre de la calle sin el tipo de vía), "calle" (tipo de vía + nombre de la calle) y "numero" (número de portal/finca). Si la misma calle y número aparece varias veces en este plano, inclúyela tantas veces como aparezca.
+- "ctos": TODOS los números/códigos de CTO que aparezcan marcados en el plano, en orden de lectura (ej. ["CTO-01","CTO-02"] o el código/número exacto del plano).
+Responde SOLO con JSON: {"pon":"","poblacion":"","fincas":[{"tipoVia":"","nombreVia":"","calle":"","numero":""}],"ctos":[""]}`;
 
 const Out = z.object({
   pon: z.string().catch(""),
   poblacion: z.string().catch(""),
-  fincas: z.array(z.object({ calle: z.coerce.string(), numero: z.coerce.string() })).catch([]),
+  fincas: z
+    .array(
+      z.object({
+        tipoVia: z.coerce.string().catch(""),
+        nombreVia: z.coerce.string().catch(""),
+        calle: z.coerce.string().catch(""),
+        numero: z.coerce.string(),
+      }),
+    )
+    .catch([]),
+  ctos: z.array(z.coerce.string()).catch([]),
 });
 
 export const extractPage = createServerFn({ method: "POST" })
@@ -38,6 +49,6 @@ export const extractPage = createServerFn({ method: "POST" })
       return { page: data.page, ...Out.parse(JSON.parse(json || "{}")), error: null as string | null };
     } catch (e) {
       console.error("extractPage failed", e);
-      return { page: data.page, pon: "", poblacion: "", fincas: [], error: "No se pudo leer esta página" };
+      return { page: data.page, pon: "", poblacion: "", fincas: [], ctos: [], error: "No se pudo leer esta página" };
     }
   });

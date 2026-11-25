@@ -30,3 +30,4 @@ use the editor.
 <!-- LOVABLE:END -->
 
 - PDF pages are rendered to images in the browser (pdfjs) and sent one by one to a server function for AI extraction; merge/duplicate rules live in src/lib/replanteo.ts with tests. Why: keeps uploads small and rules testable.
+- Corporate PDF template lives as a Lovable Asset (`src/assets/plantilla-area-influencia.pdf.asset.json`) and is filled client-side with `pdf-lib` (`src/lib/fill-plantilla.ts`) after user confirmation. Why: keeps binary template out of git and lets technicians edit/confirm before generating PDFs offline-fast.

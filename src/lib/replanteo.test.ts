@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildGroups, buildList, findConflicts, parsePages, ponKey, type PageResult } from "./replanteo";
+import { assignCtoIds, buildGroups, buildList, findConflicts, parsePages, ponKey, splitCalle, tomorrowDate, type PageResult } from "./replanteo";
 
 const res: PageResult[] = [
   { page: 1, pon: "P1", poblacion: "X", fincas: [{ calle: "Calle Mayor", numero: "3" }, { calle: "Calle Mayor", numero: "3" }] },
@@ -36,5 +36,35 @@ describe("replanteo", () => {
   });
   it("interpreta rangos de páginas", () => {
     expect(parsePages("1-3, 5, 9", 6)).toEqual([1, 2, 3, 5]);
+  });
+  it("separa tipo de vía y nombre de vía", () => {
+    expect(splitCalle("Calle Mayor")).toEqual({ tipoVia: "Calle", nombreVia: "Mayor" });
+    expect(splitCalle("Avda. de España")).toEqual({ tipoVia: "Avda", nombreVia: "de España" });
+    expect(splitCalle("Sol")).toEqual({ tipoVia: "", nombreVia: "Sol" });
+  });
+  it("asigna ID correlativo desde 1 a las CTO por PON sin duplicar entre hojas", () => {
+    const pages: PageResult[] = [
+      { page: 1, pon: "PON-1 Hoja 1 de 2", poblacion: "Getafe", fincas: [], ctos: ["CTO-10", "CTO-11"] },
+      { page: 2, pon: "PON-1 Hoja 2 de 2", poblacion: "Getafe", fincas: [], ctos: ["cto-11", "CTO-12"] },
+      { page: 3, pon: "PON-2", poblacion: "Getafe", fincas: [], ctos: ["CTO-20", "CTO-21"] },
+    ];
+    const groups = buildGroups(pages, {});
+    expect(groups[0]!.ctos).toEqual([
+      { id: 1, numero: "CTO-10" },
+      { id: 2, numero: "CTO-11" },
+      { id: 3, numero: "CTO-12" },
+    ]);
+    expect(groups[1]!.ctos).toEqual([
+      { id: 1, numero: "CTO-20" },
+      { id: 2, numero: "CTO-21" },
+    ]);
+    expect(assignCtoIds(["  001 ", "002", "001"])).toEqual([
+      { id: 1, numero: "001" },
+      { id: 2, numero: "002" },
+    ]);
+  });
+  it("calcula siempre la fecha del día siguiente", () => {
+    expect(tomorrowDate(new Date(2026, 10, 25))).toBe("26/11/2026");
+    expect(tomorrowDate(new Date(2026, 11, 31))).toBe("01/01/2027");
   });
 });

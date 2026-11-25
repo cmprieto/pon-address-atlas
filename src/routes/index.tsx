@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import plantillaPdf from "@/assets/plantilla-area-influencia.pdf.asset.json";
+import { PonReviewCard } from "@/components/PonReviewCard";
 import { extractPage } from "@/lib/extract.functions";
-import { buildGroups, findConflicts, groupText, parsePages, toText, type PageResult } from "@/lib/replanteo";
+import { buildGroups, findConflicts, parsePages, tomorrowDate, toText, type PageResult } from "@/lib/replanteo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -50,6 +52,19 @@ function Index() {
   const [errors, setErrors] = useState<string[]>([]);
   const [decisions, setDecisions] = useState<Record<string, boolean | undefined>>({});
   const [copied, setCopied] = useState<string | null>(null);
+  const [tecnico, setTecnico] = useState("Carlos P.");
+  const [fechaDefecto, setFechaDefecto] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("replanteo_tecnico");
+    if (saved !== null) setTecnico(saved);
+    setFechaDefecto(tomorrowDate());
+  }, []);
+
+  function updateTecnico(v: string) {
+    setTecnico(v);
+    localStorage.setItem("replanteo_tecnico", v);
+  }
 
   const conflicts = useMemo(() => findConflicts(results), [results]);
   const pending = conflicts.filter((c) => decisions[c.key] === undefined);
@@ -130,7 +145,7 @@ function Index() {
                 disabled={busy || !pages.length}
                 className="mt-4 w-full rounded-xl bg-primary py-4 text-base font-bold text-primary-foreground disabled:opacity-50"
               >
-                {busy ? progress : "Extraer fincas"}
+                {busy ? progress : "Extraer fincas y CTO"}
               </button>
             </div>
           )}
@@ -183,25 +198,17 @@ function Index() {
               </button>
             )}
             {groups.map((g) => (
-              <div key={g.pon} className="shadow-card rounded-2xl bg-card p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="font-mono text-xs uppercase text-muted-foreground">PON</p>
-                    <p className="font-bold">{g.pon}</p>
-                    <p className="mt-1 font-mono text-xs uppercase text-muted-foreground">Población</p>
-                    <p className="font-bold">{g.poblacion || "—"}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Páginas {g.pages.join(", ")} · {g.fincas.length} fincas</p>
-                  </div>
-                  <button
-                    disabled={pending.length > 0 || busy}
-                    onClick={() => copy(g.pon, groupText(g))}
-                    className="rounded-xl bg-accent px-4 py-3 text-sm font-bold text-accent-foreground disabled:opacity-50"
-                  >
-                    {copied === g.pon ? "¡Copiado!" : "Copiar"}
-                  </button>
-                </div>
-                <pre className="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-xl bg-muted p-4 font-mono text-sm">{groupText(g)}</pre>
-              </div>
+              <PonReviewCard
+                key={g.pon}
+                group={g}
+                defaultDate={fechaDefecto}
+                tecnico={tecnico}
+                onTecnicoChange={updateTecnico}
+                blocked={pending.length > 0 || busy}
+                templateUrl={plantillaPdf.url}
+                copied={copied === g.pon}
+                onCopy={(t) => copy(g.pon, t)}
+              />
             ))}
           </>
         )}
