@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import plantillaPdf from "@/assets/plantilla-area-influencia.pdf.asset.json";
 import { PonReviewCard } from "@/components/PonReviewCard";
 import { extractPage } from "@/lib/extract.functions";
@@ -54,6 +55,7 @@ function Index() {
   const [copied, setCopied] = useState<string | null>(null);
   const [tecnico, setTecnico] = useState("Carlos P.");
   const [fechaDefecto, setFechaDefecto] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("replanteo_tecnico");
@@ -64,6 +66,19 @@ function Index() {
   function updateTecnico(v: string) {
     setTecnico(v);
     localStorage.setItem("replanteo_tecnico", v);
+  }
+
+  function resetApp() {
+    setFile(null);
+    setDoc(null);
+    setPagesInput("");
+    setProgress("");
+    setResults([]);
+    setErrors([]);
+    setDecisions({});
+    setCopied(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const conflicts = useMemo(() => findConflicts(results), [results]);
@@ -123,7 +138,7 @@ function Index() {
             <span className="mt-1 text-xs text-muted-foreground">
               {doc ? `${doc.numPages} páginas` : "Toca para elegir el archivo"}
             </span>
-            <input type="file" accept="application/pdf" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+            <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
           </label>
 
           {doc && (
@@ -197,10 +212,12 @@ function Index() {
                 {copied === "__all" ? "¡Copiado!" : `Copiar los ${groups.length} PON`}
               </button>
             )}
-            {groups.map((g) => (
+            {groups.map((g, i) => (
               <PonReviewCard
                 key={g.pon}
                 group={g}
+                index={i}
+                total={groups.length}
                 defaultDate={fechaDefecto}
                 tecnico={tecnico}
                 onTecnicoChange={updateTecnico}
@@ -210,6 +227,16 @@ function Index() {
                 onCopy={(t) => copy(g.pon, t)}
               />
             ))}
+            {!busy && (
+              <button
+                type="button"
+                onClick={resetApp}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-input bg-card py-3.5 text-sm font-bold text-foreground shadow-card active:scale-[0.99]"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Empezar de nuevo y subir otros planos
+              </button>
+            )}
           </>
         )}
       </section>

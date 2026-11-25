@@ -5,6 +5,8 @@ import { groupText, type Cto, type Finca, type PonGroup } from "@/lib/replanteo"
 
 type Props = {
   group: PonGroup;
+  index: number;
+  total: number;
   defaultDate: string;
   tecnico: string;
   onTecnicoChange: (v: string) => void;
@@ -16,7 +18,7 @@ type Props = {
 
 const renumber = (list: Cto[]): Cto[] => list.map((c, i) => ({ id: i + 1, numero: c.numero }));
 
-export function PonReviewCard({ group, defaultDate, tecnico, onTecnicoChange, blocked, templateUrl, copied, onCopy }: Props) {
+export function PonReviewCard({ group, index, total, defaultDate, tecnico, onTecnicoChange, blocked, templateUrl, copied, onCopy }: Props) {
   const [proyecto, setProyecto] = useState(group.poblacion);
   const [pon, setPon] = useState(group.pon);
   const [fecha, setFecha] = useState(defaultDate);
@@ -25,6 +27,10 @@ export function PonReviewCard({ group, defaultDate, tecnico, onTecnicoChange, bl
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!fecha && defaultDate) setFecha(defaultDate);
+  }, [defaultDate, fecha]);
 
   useEffect(() => {
     setProyecto(group.poblacion);
@@ -85,7 +91,9 @@ export function PonReviewCard({ group, defaultDate, tecnico, onTecnicoChange, bl
     <div className="shadow-card rounded-2xl bg-card p-5 space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-mono text-xs uppercase text-muted-foreground">PON · Páginas {group.pages.join(", ")}</p>
+          <p className="font-mono text-xs uppercase text-muted-foreground">
+            {total > 1 ? `Plantilla ${index + 1} de ${total} · ` : ""}Páginas {group.pages.join(", ")}
+          </p>
           <h2 className="text-lg font-extrabold uppercase">{pon || "SIN PON"}</h2>
           <p className="text-xs text-muted-foreground">{fincas.length} fincas · {ctos.length} CTO</p>
         </div>
@@ -206,7 +214,7 @@ export function PonReviewCard({ group, defaultDate, tecnico, onTecnicoChange, bl
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
       >
         <Download className="h-4 w-4" />
-        {busy ? "Generando PDF…" : "Rellenar y descargar PDF"}
+        {busy ? "Generando PDF…" : total > 1 ? `Rellenar y descargar PDF (${pon || `PON ${index + 1}`})` : "Rellenar y descargar PDF"}
       </button>
     </div>
   );
