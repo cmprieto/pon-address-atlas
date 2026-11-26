@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { assignCtoIds, buildGroups, buildList, findConflicts, parsePages, ponKey, splitCalle, tomorrowDate, type PageResult } from "./replanteo";
+import { assignCtoIds, buildGroups, buildList, findConflicts, nextAiRenewalDate, parsePages, ponKey, splitCalle, tomorrowDate, type PageResult } from "./replanteo";
 
 const res: PageResult[] = [
   { page: 1, pon: "P1", poblacion: "X", fincas: [{ calle: "Calle Mayor", numero: "3" }, { calle: "Calle Mayor", numero: "3" }] },
@@ -66,5 +66,10 @@ describe("replanteo", () => {
   it("calcula siempre la fecha del día siguiente", () => {
     expect(tomorrowDate(new Date(2026, 10, 25))).toBe("26/11/2026");
     expect(tomorrowDate(new Date(2026, 11, 31))).toBe("01/01/2027");
+  });
+  it("calcula el día 1 del mes siguiente en UTC como fecha de renovación de créditos de IA", () => {
+    expect(nextAiRenewalDate(new Date("2026-11-26T10:22:00Z"))).toBe("1 de diciembre de 2026");
+    expect(nextAiRenewalDate(new Date("2026-12-31T23:59:59Z"))).toBe("1 de enero de 2027");
+    expect(nextAiRenewalDate(new Date("2026-01-31T12:00:00Z"))).toBe("1 de febrero de 2026");
   });
 });

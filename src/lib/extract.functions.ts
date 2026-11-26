@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { nextAiRenewalDate } from "./replanteo";
 
 const PROMPT = `Eres un asistente de replanteos FTTH. Recibes la imagen de un plano.
 Extrae:
@@ -30,7 +31,7 @@ export const extractPage = createServerFn({ method: "POST" })
     z.object({ image: z.string().startsWith("data:image/").max(12_000_000), page: z.number().int().min(1) }).parse(d),
   )
   .handler(async ({ data }) => {
-    const { generateChatCompletion } = await import("@lovable.dev/ai-gateway");
+    const { GatewayError, PaymentRequiredError, generateChatCompletion } = await import("@lovable.dev/ai-gateway");
     try {
       const res = await generateChatCompletion({
         model: "openai/gpt-6-astra",
@@ -46,9 +47,39 @@ export const extractPage = createServerFn({ method: "POST" })
       });
       const text = String(res.choices?.[0]?.message?.content ?? "");
       const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-      return { page: data.page, ...Out.parse(JSON.parse(json || "{}")), error: null as string | null };
+      return {
+        page: data.page,
+        ...Out.parse(JSON.parse(json || "{}")),
+        error: null as string | null,
+        errorCode: null as "credits_exhausted" | "read_failed" | null,
+        renewalDate: null as string | null,
+      };
     } catch (e) {
       console.error("extractPage failed", e);
-      return { page: data.page, pon: "", poblacion: "", fincas: [], ctos: [], error: "No se pudo leer esta página" };
+      const isCreditsExhausted =
+        e instanceof PaymentRequiredError ||
+        (e instanceof GatewayError && (e.code === "payment_required" || e.httpStatus === 402));
+      if (isCreditsExhausted) {
+        return {
+          page: data.page,
+          pon: "",
+          poblacion: "",
+          fincas: [],
+          ctos: [],
+          error: "Créditos de IA agotados",
+          errorCode: "credits_exhausted" as const,
+          renewalDate: nextAiRenewalDate(),
+        };
+      }
+      return {
+        page: data.page,
+        pon: "",
+        poblacion: "",
+        fincas: [],
+        ctos: [],
+        error: "No se pudo leer esta página",
+        errorCode: "read_failed" as const,
+        renewalDate: null as string | null,
+      };
     }
   });

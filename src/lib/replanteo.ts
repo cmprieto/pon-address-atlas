@@ -125,3 +125,15 @@ export function tomorrowDate(now: Date = new Date()): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}/${d.getFullYear()}`;
 }
+
+const MESES_ES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+] as const;
+
+/** Próxima fecha de renovación de créditos gratuitos mensuales de IA (día 1 del mes siguiente, UTC). */
+export function nextAiRenewalDate(now: Date = new Date()): string {
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const mes = MESES_ES[next.getUTCMonth()] ?? "";
+  return `1 de ${mes} de ${next.getUTCFullYear()}`;
+}

@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import plantillaPdf from "@/assets/plantilla-area-influencia.pdf.asset.json";
 import { PonReviewCard } from "@/components/PonReviewCard";
 import { extractPage } from "@/lib/extract.functions";
-import { buildGroups, findConflicts, parsePages, tomorrowDate, toText, type PageResult } from "@/lib/replanteo";
+import { buildGroups, findConflicts, nextAiRenewalDate, parsePages, tomorrowDate, toText, type PageResult } from "@/lib/replanteo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -51,6 +51,7 @@ function Index() {
   const [progress, setProgress] = useState("");
   const [results, setResults] = useState<PageResult[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [creditsNotice, setCreditsNotice] = useState<{ renewalDate: string; stoppedAtPage: number } | null>(null);
   const [decisions, setDecisions] = useState<Record<string, boolean | undefined>>({});
   const [copied, setCopied] = useState<string | null>(null);
   const [tecnico, setTecnico] = useState("Carlos P.");
@@ -75,6 +76,7 @@ function Index() {
     setProgress("");
     setResults([]);
     setErrors([]);
+    setCreditsNotice(null);
     setDecisions({});
     setCopied(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -90,7 +92,7 @@ function Index() {
 
   async function onFile(f: File | undefined) {
     if (!f) return;
-    setFile(f); setResults([]); setDecisions({}); setErrors([]);
+    setFile(f); setResults([]); setDecisions({}); setErrors([]); setCreditsNotice(null);
     try {
       const d = await loadPdf(f);
       setDoc(d);
@@ -102,7 +104,7 @@ function Index() {
 
   async function run() {
     if (!doc || !pages.length) return;
-    setBusy(true); setResults([]); setDecisions({}); setErrors([]);
+    setBusy(true); setResults([]); setDecisions({}); setErrors([]); setCreditsNotice(null);
     const out: PageResult[] = [];
     const errs: string[] = [];
     for (const [i, n] of pages.entries()) {
@@ -110,6 +112,10 @@ function Index() {
       try {
         const image = await renderPage(doc, n);
         const r = await extract({ data: { image, page: n } });
+        if (r.errorCode === "credits_exhausted") {
+          setCreditsNotice({ renewalDate: r.renewalDate || nextAiRenewalDate(), stoppedAtPage: n });
+          break;
+        }
         if (r.error) errs.push(`Página ${n}: ${r.error}`);
         out.push(r);
         setResults([...out]);
@@ -169,6 +175,24 @@ function Index() {
         {errors.length > 0 && (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
             {errors.map((e) => <p key={e}>{e}</p>)}
+          </div>
+        )}
+
+        {creditsNotice && (
+          <div role="alert" className="shadow-card rounded-2xl border-2 border-accent bg-card p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-accent-foreground" />
+              <div className="space-y-1.5">
+                <h2 className="text-base font-bold text-foreground">Créditos de IA agotados</h2>
+                <p className="text-sm text-foreground">
+                  No se pudo analizar el plano porque se han agotado los créditos de IA disponibles para leer páginas
+                  {results.length > 0 ? ` (detenido en la página ${creditsNotice.stoppedAtPage}).` : "."}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Próxima renovación de los créditos gratuitos: <strong className="text-foreground">{creditsNotice.renewalDate}</strong> (00:00 UTC), o en tu fecha de facturación si tienes un plan de pago. Para continuar antes, añade créditos o cambia a un plan de pago.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
